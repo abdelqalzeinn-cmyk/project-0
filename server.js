@@ -64,7 +64,9 @@ app.post('/api/chat', async (req, res) => {
         }
 
         const data = await response.json();
-        res.json({ response: data.generations[0].text.trim() });
+        // Extract the response text from the chat API response
+        const responseText = data.text || (data.message || 'No response from AI');
+        res.json({ response: responseText });
     } catch (error) {
         console.error('Server error:', error);
         res.status(500).json({ error: 'Internal server error' });
