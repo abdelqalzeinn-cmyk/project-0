@@ -11,22 +11,16 @@ const PORT = process.env.PORT || 10000;
 app.use(cors());
 app.use(express.json());
 
-// Set up public directory path
-const publicPath = path.join(__dirname, 'public');
-
 // Log directory structure for debugging
 console.log('Current directory:', __dirname);
-console.log('Public path:', publicPath);
 console.log('Directory contents:', fs.readdirSync(__dirname));
 
-// Serve static files
-app.use(express.static(publicPath, {
-  index: 'index.html'
-}));
+// Serve static files from root
+app.use(express.static(__dirname));
 
 // Explicit root route
 app.get('/', (req, res) => {
-  res.sendFile(path.join(publicPath, 'index.html'), (err) => {
+  res.sendFile(path.join(__dirname, 'index.html'), (err) => {
     if (err) {
       console.error('Error sending index.html:', err);
       res.status(500).send('Error loading the application');
