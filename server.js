@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const fetch = require('node-fetch');
+const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 10000;
@@ -9,6 +10,14 @@ const PORT = process.env.PORT || 10000;
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// Serve static files from the public directory
+app.use(express.static('public'));
+
+// Serve index.html for all other routes
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 
 // API endpoint for Cohere
 app.post('/api/chat', async (req, res) => {
