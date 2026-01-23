@@ -60,44 +60,80 @@
             padding: 1rem;
         }
 
-        /* Code block styling */
-        .code-block {
-            border: 1px solid #2d3748;
-            border-radius: 0.5rem;
-            margin: 0.75rem 0;
-            font-family: 'Fira Code', 'Consolas', 'Monaco', monospace;
+        /* Enhanced Code Block Styling */
+        .code-container {
+            position: relative;
+            margin: 1.5em 0;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            background: #1e1e1e;
+            border: 1px solid #333;
         }
 
-        .code-block pre {
-            margin: 0;
-            padding: 1rem;
-            background-color: #1e1e1e !important;
-            overflow-x: auto;
-            font-size: 0.875rem;
-            line-height: 1.5;
-            border-radius: 0 0 0.5rem 0.5rem;
-        }
-
-        .code-block .code-header {
+        .code-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            background-color: #2d3748;
-            padding: 0.25rem 0.75rem;
-            border-radius: 0.5rem 0.5rem 0 0;
+            padding: 0.5rem 1rem;
+            background: #252526;
+            border-bottom: 1px solid #333;
+            color: #9cdcfe;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.9em;
         }
 
-        .code-block .language-tag {
-            text-transform: uppercase;
-            font-size: 0.7rem;
-            color: #a0aec0;
-            font-family: 'Inter', sans-serif;
+        .code-language {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-transform: capitalize;
+        }
+
+        .code-content {
+            padding: 1rem;
+            overflow-x: auto;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.95em;
+            line-height: 1.5;
+            color: #d4d4d4;
+        }
+
+        .copy-button {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: transparent;
+            border: 1px solid #3e3e42;
+            color: #d4d4d4;
+            padding: 0.25rem 0.75rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85em;
+            transition: all 0.2s;
+        }
+
+        .copy-button:hover {
+            background: #2a2d2e;
+            border-color: #3e3e42;
+        }
+
+        .copy-button.copied {
+            background: #1e6f1d;
+            border-color: #2d9d27;
+        }
+
+        pre {
+            margin: 0;
+            padding: 0;
+            background: transparent !important;
+        }
+
+        code {
+            font-family: 'Consolas', 'Monaco', monospace !important;
         }
 
         .code-block .copy-code-btn {
-            display: flex;
-            align-items: center;
-            gap: 0.25rem;
             background: transparent;
             border: 1px solid #4a5568;
             color: #a0aec0;
@@ -571,37 +607,6 @@
             
             // Scroll to bottom
             chatContainer.scrollTop = chatContainer.scrollHeight;
-        }
-        
-        // Add a message to the chat
-        function addMessage(role, content, saveToHistory = true) {
-            const messageDiv = document.createElement('div');
-            messageDiv.className = `mb-6 ${role === 'user' ? 'ml-12' : ''}`;
-            
-            messageDiv.innerHTML = `
-                <div class="flex items-start space-x-3">
-                    ${role === 'user' ? '' : `
-                        <div class="w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center text-white font-bold flex-shrink-0">
-                            C
-                        </div>
-                    `}
-                    <div class="${role}-message message-bubble">
-                        ${content.replace(/\n/g, '<br>')}
-                    </div>
-                </div>
-            `;
-            
-            chatContainer.appendChild(messageDiv);
-            chatContainer.scrollTop = chatContainer.scrollHeight;
-            
-            // Add to current channel's messages if needed
-            if (saveToHistory) {
-                const currentChannel = channels.find(c => c.id === currentChannelId);
-                if (currentChannel) {
-                    currentChannel.messages.push({ role, content });
-                    saveChatHistory();
-                }
-            }
             
             return messageDiv;
         }
@@ -769,6 +774,112 @@
             lucide.createIcons();
         }
         
+        // Language detection and code block formatting
+        const languageMap = {
+            'js': 'javascript',
+            'py': 'python',
+            'html': 'html',
+            'css': 'css',
+            'json': 'json',
+            'java': 'java',
+            'c': 'c',
+            'cpp': 'cpp',
+            'cs': 'csharp',
+            'php': 'php',
+            'rb': 'ruby',
+            'go': 'go',
+            'rs': 'rust',
+            'ts': 'typescript',
+            'sh': 'bash',
+            'bash': 'bash',
+            'dockerfile': 'dockerfile',
+            'yaml': 'yaml',
+            'yml': 'yaml',
+            'md': 'markdown',
+            'sql': 'sql'
+        };
+
+        function detectLanguage(code) {
+            // Check for shebang
+            const shebangMatch = code.match(/^#!\s*[\/]?([a-zA-Z0-9/]+)[\s\n]/);
+            if (shebangMatch) {
+                const interpreter = shebangMatch[1].split('/').pop();
+                if (interpreter === 'python3' || interpreter === 'python2') return 'python';
+                if (interpreter === 'node') return 'javascript';
+                if (interpreter === 'bash' || interpreter === 'sh') return 'bash';
+                return interpreter;
+            }
+
+            // Check for HTML
+            if (/<[a-z][\s\S]*>/i.test(code)) return 'html';
+
+            // Check for common language patterns
+            if (code.includes('<?php')) return 'php';
+            if (code.includes('function') && (code.includes('{') || code.includes('=>'))) {
+                if (code.includes('class') && code.includes('def ')) return 'python';
+                if (code.includes('function') && code.includes('=>')) return 'javascript';
+                if (code.includes('public class') || code.includes('System.out')) return 'java';
+            }
+
+            return 'text';
+        }
+
+        function formatCodeBlock(code, languageHint = '') {
+            const blockId = 'code-' + Math.random().toString(36).substr(2, 9);
+            
+            // Clean and detect language
+            let language = languageHint.toLowerCase();
+            if (!language || !languageMap[language]) {
+                language = detectLanguage(code);
+            }
+            
+            // Map to Prism.js language class
+            const prismLanguage = languageMap[language] || 'text';
+            
+            return `
+                <div class="code-container">
+                    <div class="code-header">
+                        <div class="code-language">
+                            <i data-lucide="file-code" width="16" height="16"></i>
+                            <span>${prismLanguage}</span>
+                        </div>
+                        <button class="copy-button" id="${blockId}-button">
+                            <i data-lucide="copy" width="14" height="14"></i>
+                            <span>Copy code</span>
+                        </button>
+                    </div>
+                    <div class="code-content">
+                        <pre><code class="language-${prismLanguage}">${code}</code></pre>
+                    </div>
+                </div>
+                <script>
+                    (function() {
+                        const button = document.getElementById('${blockId}-button');
+                        const code = document.querySelector('#${blockId}-button')?.closest('.code-container')?.querySelector('code')?.textContent;
+                        
+                        if (button && code) {
+                            button.addEventListener('click', async () => {
+                                try {
+                                    await navigator.clipboard.writeText(code);
+                                    const originalHTML = button.innerHTML;
+                                    button.innerHTML = '<i data-lucide="check" width="14" height="14"></i><span>Copied!</span>';
+                                    button.classList.add('copied');
+                                    lucide.createIcons();
+                                    setTimeout(() => {
+                                        button.innerHTML = originalHTML;
+                                        button.classList.remove('copied');
+                                        lucide.createIcons();
+                                    }, 2000);
+                                } catch (err) {
+                                    console.error('Failed to copy text: ', err);
+                                }
+                            });
+                        }
+                    })();
+                <\/script>
+            `;
+        }
+
         // Initialize the app when the DOM is loaded
         document.addEventListener('DOMContentLoaded', init);
     </script>
