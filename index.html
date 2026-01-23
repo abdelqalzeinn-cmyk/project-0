@@ -371,6 +371,9 @@
         lucide.createIcons();
         
         // API Configuration - Automatically handles both local and production environments
+        const API_URL = window.location.hostname === 'localhost' 
+            ? 'http://localhost:10000/api/chat' 
+            : window.location.origin + '/api/chat';
         
         // State Management
         const channels = [];
@@ -389,10 +392,7 @@
         const currentChannelElement = document.getElementById('currentChannel');
         const channelOptionsMenu = document.getElementById('channelOptionsMenu');
         
-        // Backend API Configuration
-        const API_URL = window.location.hostname === 'localhost' 
-            ? 'http://localhost:10000/api/chat' 
-            : window.location.origin + '/api/chat';
+        // Backend API Configuration is now at the top of the script
         
         // Initialize the app
         function init() {
