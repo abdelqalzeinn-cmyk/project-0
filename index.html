@@ -419,11 +419,11 @@
             newChatBtn.addEventListener('click', createNewChat);
             
             // Send message on button click or Enter key
-            sendButton.addEventListener('click', sendMessage);
-            userInput.addEventListener('keydown', (e) => {
+            sendButton.addEventListener('click', () => sendMessage().catch(console.error));
+            userInput.addEventListener('keydown', async (e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
-                    sendMessage();
+                    await sendMessage();
                 }
             });
             
