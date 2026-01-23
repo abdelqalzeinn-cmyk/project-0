@@ -989,6 +989,20 @@
             const messageDiv = document.createElement('div');
             messageDiv.className = `mb-6 ${role === 'user' ? 'ml-12' : ''}`;
             
+            // Add message to current channel
+            const currentChannel = channels.find(c => c.id === currentChannelId);
+            if (currentChannel) {
+                if (!currentChannel.messages) {
+                    currentChannel.messages = [];
+                }
+                currentChannel.messages.push({
+                    role,
+                    content,
+                    timestamp: new Date().toISOString()
+                });
+                saveChatHistory();
+            }
+            
             // Format the content to handle code blocks
             const formattedContent = formatContent(content);
             
