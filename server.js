@@ -31,20 +31,29 @@ app.get('/', (req, res) => {
 // API endpoint for Cohere
 app.post('/api/chat', async (req, res) => {
     try {
-        const { prompt } = req.body;
+        const { prompt, isGenerate = false } = req.body;
         
         if (!prompt) {
             return res.status(400).json({ error: 'Prompt is required' });
         }
 
-        const response = await fetch('https://api.cohere.ai/v1/chat', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${process.env.COHERE_API_KEY}`,
-                'Accept': 'application/json'
-            },
-            body: JSON.stringify({
+        const apiUrl = isGenerate 
+            ? 'https://api.cohere.ai/v1/generate' 
+            : 'https://api.cohere.ai/v1/chat';
+
+        const requestBody = isGenerate
+            ? {
+                model: 'command',
+                prompt: `Generate content about: ${prompt}`,
+                max_tokens: 1000,
+                temperature: 0.7,
+                k: 0,
+                p: 1,
+                frequency_penalty: 0,
+                presence_penalty: 0,
+                stop_sequences: []
+            }
+            : {
                 model: 'command-a-03-2025',
                 message: `You are Cascade, a helpful AI coding assistant. Respond to the following in a helpful, concise manner:\n\n${prompt}`,
                 temperature: 0.7,
@@ -54,18 +63,29 @@ app.post('/api/chat', async (req, res) => {
                 frequency_penalty: 0,
                 presence_penalty: 0,
                 stop_sequences: []
-            })
+            };
+
+        const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${process.env.COHERE_API_KEY}`,
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify(requestBody)
         });
 
         if (!response.ok) {
             const error = await response.text();
-            console.error('Cohere API error:', error);
-            return res.status(response.status).json({ error: 'Error from Cohere API' });
+            console.error('API error:', error);
+            return res.status(response.status).json({ error: 'Error from API' });
         }
 
         const data = await response.json();
-        // Extract the response text from the chat API response
-        const responseText = data.text || (data.message || 'No response from AI');
+        const responseText = isGenerate 
+            ? data.generations?.[0]?.text || 'No content generated'
+            : data.text || (data.message || 'No response from AI');
+            
         res.json({ response: responseText });
     } catch (error) {
         console.error('Server error:', error);
