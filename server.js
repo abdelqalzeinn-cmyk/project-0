@@ -1,0 +1,58 @@
+require('dotenv').config();
+const express = require('express');
+const cors = require('cors');
+const fetch = require('node-fetch');
+
+const app = express();
+const PORT = process.env.PORT || 10000;
+
+// Middleware
+app.use(cors());
+app.use(express.json());
+
+// API endpoint for Cohere
+app.post('/api/chat', async (req, res) => {
+    try {
+        const { prompt } = req.body;
+        
+        if (!prompt) {
+            return res.status(400).json({ error: 'Prompt is required' });
+        }
+
+        const response = await fetch('https://api.cohere.ai/v1/generate', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${process.env.COHERE_API_KEY}`,
+            },
+            body: JSON.stringify({
+                prompt: `You are Cascade, a helpful AI coding assistant. Respond to the following in a helpful, concise manner:\n\n${prompt}`,
+                max_tokens: 500,
+                temperature: 0.7,
+                k: 0,
+                p: 1,
+                frequency_penalty: 0,
+                presence_penalty: 0,
+                stop_sequences: [],
+                return_likelihoods: 'NONE'
+            })
+        });
+
+        if (!response.ok) {
+            const error = await response.text();
+            console.error('Cohere API error:', error);
+            return res.status(response.status).json({ error: 'Error from Cohere API' });
+        }
+
+        const data = await response.json();
+        res.json({ response: data.generations[0].text.trim() });
+    } catch (error) {
+        console.error('Server error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Start server
+app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+});
