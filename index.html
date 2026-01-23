@@ -370,12 +370,12 @@
         // Initialize Lucide icons
         lucide.createIcons();
         
+        // API Configuration - Automatically handles both local and production environments
+        
         // State Management
-        let channels = [
-            { id: 'chat-1', name: 'New Chat', messages: [] }
-        ];
-        let currentChannelId = 'chat-1';
-        let channelCounter = 1;
+        const channels = [];
+        let currentChannelId = '';
+        let channelCounter = 0;
         
         // DOM Elements
         const sidebar = document.getElementById('sidebar');
@@ -700,24 +700,36 @@
             const message = userInput.value.trim();
             if (!message) return;
             
-            // Add user message to chat
-            addMessage('user', message);
-            userInput.value = '';
-            
-            // Show typing indicator
-            showTypingIndicator();
-            
             try {
-                // Get AI response
-                const aiResponse = await getAIResponse(message);
+                // Add user message to chat
+                addMessage('user', message);
+                userInput.value = '';
                 
-                // Remove typing indicator and add AI response
-                removeTypingIndicator();
-                addMessage('assistant', aiResponse);
+                // Show typing indicator
+                const typingIndicator = showTypingIndicator();
+                
+                try {
+                    console.log('Sending message to server...');
+                    // Get AI response
+                    const aiResponse = await getAIResponse(message);
+                    console.log('Received response:', aiResponse);
+                    
+                    // Remove typing indicator and add AI response
+                    removeTypingIndicator();
+                    addMessage('assistant', aiResponse);
+                } catch (error) {
+                    console.error('Error in getAIResponse:', error);
+                    removeTypingIndicator();
+                    addMessage('assistant', `I encountered an error: ${error.message}. Please check the console for details.`);
+                }
             } catch (error) {
-                console.error('Error:', error);
+                console.error('Error in sendMessage:', error);
+                addMessage('assistant', 'An unexpected error occurred. Please try again.');
+            } finally {
+                // Ensure typing indicator is always removed
                 removeTypingIndicator();
-                addMessage('assistant', "I'm sorry, something went wrong. Please try again.");
+                // Re-enable the send button
+                sendButton.disabled = false;
             }
         }
         
