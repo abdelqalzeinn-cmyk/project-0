@@ -12,7 +12,7 @@ app.use(cors());
 app.use(express.json());
 
 // Serve static files from the public directory
-app.use(express.static('public'));
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Serve index.html for all other routes
 app.get('*', (req, res) => {
