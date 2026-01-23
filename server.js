@@ -37,22 +37,23 @@ app.post('/api/chat', async (req, res) => {
             return res.status(400).json({ error: 'Prompt is required' });
         }
 
-        const response = await fetch('https://api.cohere.ai/v1/generate', {
+        const response = await fetch('https://api.cohere.ai/v1/chat', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${process.env.COHERE_API_KEY}`,
+                'Accept': 'application/json'
             },
             body: JSON.stringify({
-                prompt: `You are Cascade, a helpful AI coding assistant. Respond to the following in a helpful, concise manner:\n\n${prompt}`,
-                max_tokens: 500,
+                model: 'command-a-03-2025',
+                message: `You are Cascade, a helpful AI coding assistant. Respond to the following in a helpful, concise manner:\n\n${prompt}`,
                 temperature: 0.7,
+                max_tokens: 500,
                 k: 0,
                 p: 1,
                 frequency_penalty: 0,
                 presence_penalty: 0,
-                stop_sequences: [],
-                return_likelihoods: 'NONE'
+                stop_sequences: []
             })
         });
 
