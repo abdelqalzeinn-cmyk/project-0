@@ -2,10 +2,18 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
-const fetch = require('node-fetch'); // Import node-fetch
+const fetch = require('node-fetch');
+require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 10000;
+
+// Log environment configuration
+console.log('Environment variables loaded:', {
+  NODE_ENV: process.env.NODE_ENV || 'development',
+  PORT: PORT,
+  COHERE_API_KEY: process.env.COHERE_API_KEY ? '***' : 'Not set'
+});
 
 // Middleware
 app.use(cors());
@@ -15,17 +23,22 @@ app.use(express.json());
 console.log('Current directory:', __dirname);
 console.log('Directory contents:', fs.readdirSync(__dirname));
 
-// Serve static files from root
-app.use(express.static(__dirname));
-
-// Explicit root route
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'), (err) => {
-    if (err) {
-      console.error('Error sending index.html:', err);
-      res.status(500).send('Error loading the application');
+// Serve static files from root with proper MIME types
+app.use(express.static(__dirname, {
+  extensions: ['html', 'htm', 'js', 'css', 'json', 'png', 'jpg', 'jpeg', 'gif', 'svg'],
+  setHeaders: (res, path) => {
+    if (path.endsWith('.js')) {
+      res.set('Content-Type', 'application/javascript');
+    } else if (path.endsWith('.css')) {
+      res.set('Content-Type', 'text/css');
     }
-  });
+  }
+}));
+
+// Request logging middleware
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+  next();
 });
 
 // API endpoint for Cohere
@@ -93,7 +106,32 @@ app.post('/api/chat', async (req, res) => {
     }
 });
 
+// Handle all other routes by serving index.html
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'), (err) => {
+    if (err) {
+      console.error('Error sending index.html:', err);
+      res.status(500).send('Error loading the application');
+    }
+  });
+});
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error('Unhandled error:', err);
+  res.status(500).json({ error: 'Internal Server Error' });
+});
+
 // Start server
-app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+const server = app.listen(PORT, '0.0.0.0', () => {
+  console.log(`\n🚀 Server is running at:`);
+  console.log(`   Local: http://localhost:${PORT}`);
+  console.log(`Network: http://${require('os').networkInterfaces().Ethernet?.[1]?.address || 'localhost'}:${PORT}`);
+  console.log(`\nPress Ctrl+C to stop the server\n`);
+});
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (err) => {
+  console.error('Unhandled Rejection:', err);
+  server.close(() => process.exit(1));
 });

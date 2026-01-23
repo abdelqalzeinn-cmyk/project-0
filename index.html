@@ -376,7 +376,7 @@
             : window.location.origin + '/api/chat';
         
         // State Management
-        const channels = [];
+        let channels = [];
         let currentChannelId = '';
         let channelCounter = 0;
         
@@ -396,10 +396,27 @@
         
         // Initialize the app
         function init() {
-            renderChannels();
+            // Initialize channels array if it doesn't exist
+            if (!window.channels) {
+                window.channels = [];
+            }
+            
+            // Load saved data
             loadChatHistory();
+            
+            // If no channels exist, create a default one
+            if (channels.length === 0) {
+                createNewChat();
+            } else {
+                // Make sure currentChannelId points to a valid channel
+                if (!channels.some(c => c.id === currentChannelId)) {
+                    currentChannelId = channels[0].id;
+                }
+                renderChannels();
+                updateUI();
+            }
+            
             setupEventListeners();
-            updateUI();
         }
         
         // Set up event listeners
@@ -411,12 +428,16 @@
             });
             
             // Mobile menu toggle
-            mobileMenuButton.addEventListener('click', () => {
+            mobileMenuButton.addEventListener('click', (e) => {
+                e.stopPropagation();
                 sidebar.classList.toggle('hidden');
             });
             
             // New chat button
-            newChatBtn.addEventListener('click', createNewChat);
+            newChatBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                createNewChat();
+            });
             
             // Send message on button click or Enter key
             sendButton.addEventListener('click', () => sendMessage().catch(console.error));
@@ -448,6 +469,7 @@
             channels.forEach(channel => {
                 const channelElement = document.createElement('div');
                 channelElement.className = `channel ${channel.id === currentChannelId ? 'active' : ''}`;
+                channelElement.dataset.channelId = channel.id;  // Add this line
                 channelElement.innerHTML = `
                     <i data-lucide="message-square" class="w-4 h-4 mr-2"></i>
                     <span class="truncate flex-1">${channel.name}</span>
@@ -479,6 +501,9 @@
         
         // Show channel options menu
         function showChannelOptions(channel, channelElement) {
+            // Close any open menu first
+            channelOptionsMenu.classList.add('hidden');
+            
             // Position the menu
             const rect = channelElement.getBoundingClientRect();
             channelOptionsMenu.style.top = `${rect.bottom + window.scrollY}px`;
@@ -489,7 +514,7 @@
             const renameBtn = menu.querySelector('.channel-option:first-child');
             const deleteBtn = menu.querySelector('.channel-option:last-child');
             
-            // Remove previous event listeners
+            // Remove previous event listeners by cloning the elements
             const newRenameBtn = renameBtn.cloneNode(true);
             const newDeleteBtn = deleteBtn.cloneNode(true);
             
@@ -497,37 +522,73 @@
             deleteBtn.parentNode.replaceChild(newDeleteBtn, deleteBtn);
             
             // Add new event listeners
-            newRenameBtn.addEventListener('click', () => renameChannel(channel.id));
-            newDeleteBtn.addEventListener('click', () => deleteChannel(channel.id));
+            newRenameBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                renameChannel(channel.id);
+            });
+            
+            newDeleteBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                deleteChannel(channel.id);
+            });
             
             // Show the menu
             menu.classList.remove('hidden');
+            
+            // Close menu when clicking outside
+            const closeMenu = (e) => {
+                if (!menu.contains(e.target) && !channelElement.contains(e.target)) {
+                    menu.classList.add('hidden');
+                    document.removeEventListener('click', closeMenu);
+                }
+            };
+            
+            // Add event listener with a small delay to prevent immediate closure
+            setTimeout(() => {
+                document.addEventListener('click', closeMenu);
+            }, 10);
         }
         
         // Create a new chat
         function createNewChat() {
-            channelCounter++;
+            // Close any open menu first
+            channelOptionsMenu.classList.add('hidden');
+            
+            const newChannelId = `chat-${Date.now()}`;
             const newChannel = {
-                id: `chat-${channelCounter}`,
-                name: `Chat ${channelCounter}`,
+                id: newChannelId,
+                name: `Chat ${channels.length + 1}`,
                 messages: []
             };
             
             channels.push(newChannel);
+            currentChannelId = newChannelId;
             saveChatHistory();
-            switchToChannel(newChannel.id);
             renderChannels();
+            updateUI();
+            
+            // Focus the input field
+            userInput.focus();
         }
         
         // Switch to a different channel
         function switchToChannel(channelId) {
-            currentChannelId = channelId;
-            updateUI();
-            saveChatHistory();
-            
-            // Close sidebar on mobile
-            if (window.innerWidth < 768) {
-                sidebar.classList.add('hidden');
+            // Only switch if it's a different channel
+            if (currentChannelId !== channelId) {
+                currentChannelId = channelId;
+                // Update the active state of all channels
+                document.querySelectorAll('.channel').forEach(el => {
+                    el.classList.toggle('active', el.dataset.channelId === channelId);
+                });
+                // Update the UI with the new channel's messages
+                updateUI();
+                // Save the current state
+                saveChatHistory();
+                
+                // Close sidebar on mobile
+                if (window.innerWidth < 768) {
+                    sidebar.classList.add('hidden');
+                }
             }
         }
         
@@ -575,14 +636,24 @@
         
         // Update the UI based on current state
         function updateUI() {
-            const currentChannel = channels.find(c => c.id === currentChannelId);
+            if (!channels || channels.length === 0) {
+                console.error('No channels available');
+                return;
+            }
+            
+            const currentChannel = channels.find(c => c.id === currentChannelId) || channels[0];
             if (!currentChannel) return;
+            
+            // Update current channel ID in case we fell back to the first channel
+            if (currentChannelId !== currentChannel.id) {
+                currentChannelId = currentChannel.id;
+            }
             
             // Update channel title
             currentChannelElement.textContent = currentChannel.name;
             
             // Update chat messages
-            renderMessages(currentChannel.messages);
+            renderMessages(currentChannel.messages || []);
             
             // Update active channel in sidebar
             document.querySelectorAll('.channel').forEach(el => {
@@ -607,8 +678,6 @@
             
             // Scroll to bottom
             chatContainer.scrollTop = chatContainer.scrollHeight;
-            
-            return messageDiv;
         }
         
         // Show typing indicator
@@ -892,6 +961,95 @@
             `;
         }
 
+        // Format content with code blocks
+        function formatContent(content) {
+            // Check if content contains code blocks
+            const codeBlockRegex = /```(\w*)\n([\s\S]*?)```/g;
+            
+            // Replace code blocks with formatted HTML
+            return content.replace(codeBlockRegex, (match, language, code) => {
+                const blockId = 'code-' + Math.random().toString(36).substr(2, 9);
+                return `
+                    <div class="bg-gray-800 rounded-lg overflow-hidden my-2 border border-gray-600">
+                        <div class="bg-gray-700 px-4 py-2 text-gray-300 text-sm flex justify-between items-center">
+                            <span class="font-mono text-xs">${language || 'code'}</span>
+                            <button class="copy-button flex items-center gap-1 px-2 py-1 text-xs bg-gray-600 hover:bg-gray-500 rounded text-white" data-code="${code.replace(/"/g, '&quot;').trim()}">
+                                <i data-lucide="copy" width="12" height="12"></i>
+                                <span>Copy</span>
+                            </button>
+                        </div>
+                        <pre class="p-4 overflow-x-auto text-sm bg-gray-900 text-gray-100 m-0"><code>${code}</code></pre>
+                    </div>
+                `;
+            });
+        }
+
+        // Add message to chat
+        function addMessage(role, content) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `mb-6 ${role === 'user' ? 'ml-12' : ''}`;
+            
+            // Format the content to handle code blocks
+            const formattedContent = formatContent(content);
+            
+            messageDiv.innerHTML = `
+                <div class="flex items-start space-x-3">
+                    ${role === 'user' ? '' : `
+                        <div class="w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center text-white font-bold flex-shrink-0">
+                            C
+                        </div>
+                    `}
+                    <div class="${role}-message message-bubble">
+                        ${formattedContent}
+                    </div>
+                </div>
+            `;
+            
+            // Initialize copy buttons and Lucide icons
+            const copyButtons = messageDiv.querySelectorAll('.copy-button');
+            copyButtons.forEach(button => {
+                // Create a new icon element
+                const icon = document.createElement('i');
+                icon.setAttribute('data-lucide', 'copy');
+                icon.setAttribute('width', '12');
+                icon.setAttribute('height', '12');
+                button.prepend(icon);
+                
+                button.addEventListener('click', async () => {
+                    const code = button.getAttribute('data-code');
+                    try {
+                        await navigator.clipboard.writeText(code);
+                        const originalHTML = button.innerHTML;
+                        button.innerHTML = '<i data-lucide="check" width="12" height="12"></i><span>Copied!</span>';
+                        lucide.createIcons();
+                        
+                        setTimeout(() => {
+                            button.innerHTML = originalHTML;
+                            lucide.createIcons();
+                        }, 2000);
+                    } catch (err) {
+                        console.error('Failed to copy text: ', err);
+                    }
+                });
+            });
+            
+            // Initialize Lucide icons for this message
+            lucide.createIcons({
+                icons: lucide.icons,
+                attrs: {
+                    'stroke-width': 2,
+                    'stroke': 'currentColor',
+                    'fill': 'none',
+                    'stroke-linecap': 'round',
+                    'stroke-linejoin': 'round'
+                }
+            });
+            
+            const chatContainer = document.getElementById('chatContainer');
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+        
         // Initialize the app when the DOM is loaded
         document.addEventListener('DOMContentLoaded', init);
     </script>
