@@ -381,21 +381,53 @@
             </button>
         </div>
 
-        <script>
+                </div>
+            </div>
+
+            <!-- Channel Options Menu (hidden by default) -->
+            <div id="channelOptionsMenu" class="hidden absolute bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+                <button class="channel-option w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center">
+                    <i data-lucide="edit-2" class="w-4 h-4 mr-2"></i>
+                    Rename
+                </button>
+                <button class="channel-option w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-gray-100 flex items-center">
+                    <i data-lucide="trash-2" class="w-4 h-4 mr-2"></i>
+                    Delete
+                </button>
+            </div>
+
+            <script>
             // Initialize Lucide icons
             lucide.createIcons();
-        
-        // DOM Elements
-        const sidebar = document.getElementById('sidebar');
-        const toggleSidebar = document.getElementById('toggleSidebar');
-        const mobileMenuButton = document.getElementById('mobileMenuButton');
-        const newChatBtn = document.getElementById('newChatBtn');
-        const channelsList = document.getElementById('channelsList');
-        const chatContainer = document.getElementById('chatContainer');
-        const userInput = document.getElementById('userInput');
-        const sendButton = document.getElementById('sendButton');
-        const currentChannelElement = document.getElementById('currentChannel');
-        const channelOptionsMenu = document.getElementById('channelOptionsMenu');
+
+            // Conversation Context Management
+            let conversationContext = {
+                messages: [],
+                maxContextLength: 10  // Maximum number of messages to keep in context
+            };
+
+            // Add message to context
+            // Add message to context
+function addToContext(role, content) {
+    conversationContext.messages.push({ role, content });
+    
+    // Trim messages if exceeding max context length
+    if (conversationContext.messages.length > conversationContext.maxContextLength) {
+        conversationContext.messages = conversationContext.messages.slice(-conversationContext.maxContextLength);
+    }
+    
+    // Save to localStorage
+    try {
+        localStorage.setItem('conversationContext', JSON.stringify(conversationContext));
+    } catch (e) {
+        console.warn('Failed to save conversation context', e);
+    }
+}
+
+// Move these outside the function
+const currentChannelElement = document.getElementById('currentChannel');
+const channelOptionsMenu = document.getElementById('channelOptionsMenu');
+// ... rest of your code
         
         // Backend API Configuration is now at the top of the script
         
@@ -1092,10 +1124,12 @@ AI: `;
                 }
             });
             
-            const chatContainer = document.getElementById('chatContainer');
-            chatContainer.appendChild(messageDiv);
+                        chatContainer.appendChild(messageDiv);
             chatContainer.scrollTop = chatContainer.scrollHeight;
-        }
+        }  // Add this closing brace if missing
+        
+        // API Configuration
+        const API_URL = 'http://localhost:3000/api/chat'; // Update this with your actual API endpoint
         
         // Initialize the app when the DOM is loaded
         document.addEventListener('DOMContentLoaded', () => {
