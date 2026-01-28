@@ -407,31 +407,29 @@
             };
 
             // Add message to context
-            // Add message to context
-function addToContext(role, content) {
-    conversationContext.messages.push({ role, content });
-    
-    // Trim messages if exceeding max context length
-    if (conversationContext.messages.length > conversationContext.maxContextLength) {
-        conversationContext.messages = conversationContext.messages.slice(-conversationContext.maxContextLength);
-    }
-    
-    // Save to localStorage
-    try {
-        localStorage.setItem('conversationContext', JSON.stringify(conversationContext));
-    } catch (e) {
-        console.warn('Failed to save conversation context', e);
-    }
-}
+            function addToContext(role, content) {
+                conversationContext.messages.push({ role, content });
+                
+                // Trim messages if exceeding max context length
+                if (conversationContext.messages.length > conversationContext.maxContextLength) {
+                    conversationContext.messages = conversationContext.messages.slice(-conversationContext.maxContextLength);
+                }
+                
+                // Save to localStorage
+                try {
+                    localStorage.setItem('conversationContext', JSON.stringify(conversationContext));
+                } catch (e) {
+                    console.warn('Failed to save conversation context', e);
+                }
+            }
 
-// Move these outside the function
-const currentChannelElement = document.getElementById('currentChannel');
-const channelOptionsMenu = document.getElementById('channelOptionsMenu');
-// ... rest of your code
-        
-        // Backend API Configuration is now at the top of the script
-        
-        // Initialize the app
+            // Move these outside the function
+            const currentChannelElement = document.getElementById('currentChannel');
+            const channelOptionsMenu = document.getElementById('channelOptionsMenu');
+            
+            // Backend API Configuration is now at the top of the script
+            
+            // Initialize the app
         function init() {
             // Initialize channels array if it doesn't exist
             if (!window.channels) {
@@ -1133,7 +1131,6 @@ AI: `;
         
         // Initialize the app when the DOM is loaded
         document.addEventListener('DOMContentLoaded', () => {
-            loadContext();
             init();
         });
     </script>
