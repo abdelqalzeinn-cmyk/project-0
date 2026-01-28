@@ -873,13 +873,77 @@ AI: `;
             }
         }
         
-        // Save chat history to localStorage
+        // Save chat history to localStorage with size limits
         function saveChatHistory() {
-            localStorage.setItem('cascadeChatHistory', JSON.stringify({
-                channels,
-                currentChannelId,
-                channelCounter
-            }));
+            try {
+                // Create a deep copy of channels to avoid modifying the original
+                const channelsToSave = JSON.parse(JSON.stringify(channels));
+                
+                // Limit the number of messages per channel to prevent quota issues
+                const MAX_MESSAGES_PER_CHANNEL = 40;
+                
+                channelsToSave.forEach(channel => {
+                    if (channel.messages && channel.messages.length > MAX_MESSAGES_PER_CHANNEL) {
+                        // Keep only the most recent messages
+                        channel.messages = channel.messages.slice(-MAX_MESSAGES_PER_CHANNEL);
+                    }
+                });
+                
+                const dataToSave = {
+                    channels: channelsToSave,
+                    currentChannelId,
+                    channelCounter
+                };
+                
+                // Try to save with error handling
+                localStorage.setItem('cascadeChatHistory', JSON.stringify(dataToSave));
+            } catch (error) {
+                console.error('Error saving chat history:', error);
+                
+                // If we still get a quota error, try to clear old data
+                if (error.name === 'QuotaExceededError') {
+                    console.warn('Storage quota exceeded, clearing old messages...');
+                    clearOldMessages();
+                }
+            }
+        }
+        
+        // Helper function to clear old messages when storage is full
+        function clearOldMessages() {
+            try {
+                const MAX_CHANNELS = 5;
+                const MAX_MESSAGES_PER_CHANNEL = 25;
+                
+                // Sort channels by last message timestamp (newest first)
+                const sortedChannels = [...channels].sort((a, b) => {
+                    const aTime = a.messages.length > 0 ? Math.max(...a.messages.map(m => m.timestamp || 0)) : 0;
+                    const bTime = b.messages.length > 0 ? Math.max(...b.messages.map(m => m.timestamp || 0)) : 0;
+                    return bTime - aTime;
+                });
+                
+                // Keep only the most recent channels and messages
+                const limitedChannels = sortedChannels
+                    .slice(0, MAX_CHANNELS)
+                    .map(channel => ({
+                        ...channel,
+                        messages: channel.messages.slice(-MAX_MESSAGES_PER_CHANNEL)
+                    }));
+                
+                // Save the reduced data
+                localStorage.setItem('cascadeChatHistory', JSON.stringify({
+                    channels: limitedChannels,
+                    currentChannelId: limitedChannels[0]?.id || 'default',
+                    channelCounter: Math.max(...limitedChannels.map(c => parseInt(c.id.replace('channel-', '') || '0'))) + 1
+                }));
+                
+                // Reload the page to reflect changes
+                window.location.reload();
+            } catch (err) {
+                console.error('Error clearing old messages:', err);
+                // If we still can't save, clear everything
+                localStorage.removeItem('cascadeChatHistory');
+                window.location.reload();
+            }
         }
         
         // Load chat history from localStorage
