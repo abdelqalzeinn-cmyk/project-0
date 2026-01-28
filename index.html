@@ -366,19 +366,48 @@
         </button>
     </div>
 
-    <script>
-        // Initialize Lucide icons
-        lucide.createIcons();
-        
-        // API Configuration - Automatically handles both local and production environments
-        const API_URL = window.location.hostname === 'localhost' 
-            ? 'http://localhost:10000/api/chat' 
-            : window.location.origin + '/api/chat';
-        
-        // State Management
-        let channels = [];
-        let currentChannelId = '';
-        let channelCounter = 0;
+                <!-- Input Area -->
+                <div class="bg-gray-900 border-t border-gray-700 py-4 px-6">
+                    <div class="max-w-4xl mx-auto">
+                        <div class="flex items-end space-x-3">
+                            <div class="flex-1 bg-gray-800 rounded-xl border border-gray-700 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-900 transition-colors">
+                                <textarea 
+                                    id="userInput" 
+                                    rows="1" 
+                                    placeholder="Message Cascade..." 
+                                    class="w-full bg-transparent border-0 resize-none focus:ring-0 text-gray-100 placeholder-gray-500 p-3"
+                                ></textarea>
+                            </div>
+                            <button 
+                                id="sendButton" 
+                                class="bg-blue-500 hover:bg-blue-600 text-white p-3 rounded-xl transition-colors"
+                            >
+                                <i data-lucide="send" class="w-5 h-5"></i>
+                            </button>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-2 text-center">
+                            Cascade can make mistakes. Consider checking important information.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Channel Options Menu (hidden by default) -->
+        <div id="channelOptionsMenu" class="hidden absolute bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+            <button class="channel-option w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center">
+                <i data-lucide="edit-2" class="w-4 h-4 mr-2"></i>
+                Rename
+            </button>
+            <button class="channel-option w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-gray-100 flex items-center">
+                <i data-lucide="trash-2" class="w-4 h-4 mr-2"></i>
+                Delete
+            </button>
+        </div>
+
+        <script>
+            // Initialize Lucide icons
+            lucide.createIcons();
         
         // DOM Elements
         const sidebar = document.getElementById('sidebar');
@@ -710,7 +739,7 @@
             }
         }
         
-        // Get AI response using Pollinations API
+        // Get AI response with conversation context
         async function getAIResponse(prompt) {
             try {
                 // Check if the message starts with 'generate' (case insensitive)
@@ -739,14 +768,29 @@
                     const imageUrl = URL.createObjectURL(blob);
                     return `<img src="${imageUrl}" alt="Generated image" style="max-width: 100%; border-radius: 8px; margin-top: 10px;">`;
                 } else {
-                    // For regular chat, use the existing chat API
+                    // Add user message to context
+                    addToContext('user', processedPrompt);
+                    
+                    // Prepare the conversation history for the API
+                    const conversationHistory = conversationContext.messages
+                        .map(msg => `${msg.role === 'user' ? 'User' : 'AI'}: ${msg.content}`)
+                        .join('\n');
+                    
+                    // Create a more detailed prompt with context
+                    const contextAwarePrompt = `The following is a conversation with an AI assistant. The assistant is helpful, creative, and maintains context of the conversation.
+
+${conversationHistory}
+
+AI: `;
+
+                    // For regular chat, use the existing chat API with context
                     const response = await fetch(API_URL, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
                         },
                         body: JSON.stringify({ 
-                            prompt: processedPrompt,
+                            prompt: contextAwarePrompt,
                             isGenerate: false
                         })
                     });
@@ -756,10 +800,15 @@
                     }
                     
                     const data = await response.json();
-                    return data.response;
+                    const aiResponse = data.response;
+                    
+                    // Add AI's response to context
+                    addToContext('assistant', aiResponse);
+                    
+                    return aiResponse;
                 }
             } catch (error) {
-                console.error('Error calling Cohere API:', error);
+                console.error('Error in getAIResponse:', error);
                 return "I'm sorry, I'm having trouble connecting to the AI service. Please try again later.";
             }
         }
@@ -989,17 +1038,25 @@
             const messageDiv = document.createElement('div');
             messageDiv.className = `mb-6 ${role === 'user' ? 'ml-12' : ''}`;
             
+            // Create message object with timestamp
+            const message = {
+                role,
+                content,
+                timestamp: new Date().toISOString()
+            };
+            
             // Add message to current channel
             const currentChannel = channels.find(c => c.id === currentChannelId);
             if (currentChannel) {
                 if (!currentChannel.messages) {
                     currentChannel.messages = [];
                 }
-                currentChannel.messages.push({
-                    role,
-                    content,
-                    timestamp: new Date().toISOString()
-                });
+                currentChannel.messages.push(message);
+                
+                // Update the channel's last updated timestamp
+                currentChannel.updatedAt = new Date().toISOString();
+                
+                // Save to localStorage
                 saveChatHistory();
             }
             
@@ -1065,7 +1122,10 @@
         }
         
         // Initialize the app when the DOM is loaded
-        document.addEventListener('DOMContentLoaded', init);
+        document.addEventListener('DOMContentLoaded', () => {
+            loadContext();
+            init();
+        });
     </script>
 </body>
 </html>
