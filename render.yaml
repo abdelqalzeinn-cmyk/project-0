@@ -1,15 +1,36 @@
 services:
   - type: web
     name: cascade-ai-assistant
-    env: node
-    buildCommand: npm install
-    startCommand: npm start
+    env: python3
+    buildCommand: |
+      pip install -r requirements.txt
+      pip install uvicorn
+    startCommand: uvicorn app:app --host 0.0.0.0 --port 10000
     envVars:
-      - key: NODE_ENV
-        value: production
-      - key: PORT
-        value: 10000
+      - key: PYTHONUNBUFFERED
+        value: true
+    plan: free
+    include:
+      - "*.py"
+      - "*.txt"
+      - "templates/*"
+      - "static/*"
+      - "fine_tuned_model/*"
+
+  - type: worker
+    name: discord-bot
+    env: python3
+    buildCommand: |
+      pip install -r requirements.txt
+    startCommand: python bot.py
+    envVars:
+      - key: DISCORD_TOKEN
+        fromDatabase: false
+        generateValue: false
       - key: COHERE_API_KEY
         fromDatabase: false
         generateValue: false
     plan: free
+    include:
+      - "*.py"
+      - "*.txt"
