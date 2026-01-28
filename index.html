@@ -456,6 +456,20 @@
         
         // Set up event listeners
         function setupEventListeners() {
+            // Get DOM elements
+            const userInput = document.getElementById('userInput');
+            const sendButton = document.getElementById('sendButton');
+            const toggleSidebar = document.getElementById('toggleSidebar');
+            const sidebar = document.getElementById('sidebar');
+            const mobileMenuButton = document.getElementById('mobileMenuButton');
+            const newChatBtn = document.getElementById('newChatBtn');
+            const channelOptionsMenu = document.getElementById('channelOptionsMenu');
+            
+            if (!userInput || !sendButton || !toggleSidebar || !sidebar || !mobileMenuButton || !newChatBtn || !channelOptionsMenu) {
+                console.error('One or more required elements not found');
+                return;
+            }
+
             // Toggle sidebar
             toggleSidebar.addEventListener('click', () => {
                 sidebar.classList.toggle('collapsed');
@@ -476,6 +490,8 @@
             
             // Send message on button click or Enter key
             sendButton.addEventListener('click', () => sendMessage().catch(console.error));
+            
+            // Handle Enter key in message input
             userInput.addEventListener('keydown', async (e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
@@ -491,7 +507,7 @@
             
             // Close channel options menu when clicking outside
             document.addEventListener('click', (e) => {
-                if (!e.target.closest('.channel-options') && !e.target.closest('#channelOptionsMenu')) {
+                if (channelOptionsMenu && !e.target.closest('.channel-options') && !e.target.closest('#channelOptionsMenu')) {
                     channelOptionsMenu.classList.add('hidden');
                 }
             });
